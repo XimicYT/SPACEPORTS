@@ -176,7 +176,7 @@ setInterval(() => {
 // SERVER TICK - 60 FPS
 setInterval(() => {
     const now = Date.now();
-
+    const activeDoors = doors.map(d => d.closeUntil > now);
     if (now > tagCooldown) {
         const itId = Object.keys(players).find(id => players[id].isIt);
         
