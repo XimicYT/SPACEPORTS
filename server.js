@@ -67,7 +67,7 @@ const MAP_BLUEPRINT = [
 const balls = [
     { id: 'b1', x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS },
     { id: 'b2', x: 1950, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS },
-    { id: 'b3', x: 9150, y: 6150, vx: 0, vy: 0, radius: BALL_RADIUS }
+    { id: 'b3', x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS }
 ];
 
 io.on('connection', (socket) => {
