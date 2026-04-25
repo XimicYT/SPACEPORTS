@@ -206,7 +206,7 @@ setInterval(() => {
         ball.vx *= FRICTION;
         ball.vy *= FRICTION;
 
-        // --- PLAYER VS BALL COLLISIONS (Billiard Physics) ---
+        // --- PLAYER VS BALL COLLISIONS (Lag-Resistant Billiard Physics) ---
         for (const pid in players) {
             const p = players[pid];
             const dx = ball.x - p.x;
@@ -225,20 +225,22 @@ setInterval(() => {
                 ball.x += nx * overlap;
                 ball.y += ny * overlap;
                 
-                // Billiard Kinetic Transfer
-                // Calculate how fast the player is moving INTO the ball
-                const relativeVelocity = (p.vx * nx) + (p.vy * ny);
+                // FIXED: Convert player velocity from units/second to units/frame!
+                const pVxFrame = p.vx / 60;
+                const pVyFrame = p.vy / 60;
+
+                // Calculate relative velocity so we only push the ball if we are moving FASTER than it
+                const relV = ((pVxFrame - ball.vx) * nx) + ((pVyFrame - ball.vy) * ny);
                 
-                if (relativeVelocity > 0) {
-                    // Ball takes the hit and flies off! 
-                    // 1.2 multiplier simulates the ball being lighter than the player's engines
-                    ball.vx += nx * relativeVelocity * 1.2; 
-                    ball.vy += ny * relativeVelocity * 1.2;
+                if (relV > 0) {
+                    // Ball takes the hit! 1.2 simulates the ball being lighter than the player's engines
+                    ball.vx += nx * relV * 1.2; 
+                    ball.vy += ny * relV * 1.2;
                 }
             }
         }
 
-        // --- BALL VS BALL COLLISIONS ---
+        // --- BALL VS BALL COLLISIONS (Fixed Momentum Transfer) ---
         balls.forEach(otherBall => {
             if (ball.id === otherBall.id) return;
             const dx = otherBall.x - ball.x;
@@ -257,24 +259,26 @@ setInterval(() => {
                 otherBall.x += nx * (overlap / 2);
                 otherBall.y += ny * (overlap / 2);
 
-                // Exchange momentum (Elastic bounce)
-                const kx = (ball.vx - otherBall.vx);
-                const ky = (ball.vy - otherBall.vy);
-                const p = (nx * kx + ny * ky); 
-                
-                ball.vx -= p * nx;
-                ball.vy -= p * ny;
-                otherBall.vx += p * nx;
-                otherBall.vy += p * ny;
+                // Safely exchange momentum only if moving towards each other
+                const relV = ((ball.vx - otherBall.vx) * nx) + ((ball.vy - otherBall.vy) * ny);
+                if (relV > 0) {
+                    ball.vx -= nx * relV * 0.5;
+                    ball.vy -= ny * relV * 0.5;
+                    otherBall.vx += nx * relV * 0.5;
+                    otherBall.vy += ny * relV * 0.5;
+                }
             }
         });
+
+        // SAFETY NET: Hard cap the ball's speed so it can never tunnel through walls again
+        ball.vx = Math.max(-100, Math.min(100, ball.vx));
+        ball.vy = Math.max(-100, Math.min(100, ball.vy));
 
         // Apply Velocity to Position
         ball.x += ball.vx;
         ball.y += ball.vy;
 
         // --- TILE INTERACTIONS (Walls, Doors, Speed Pads) ---
-        // Get the grid coordinates of the ball's center
         const gridX = Math.floor(ball.x / TILE_SIZE);
         const gridY = Math.floor(ball.y / TILE_SIZE);
 
@@ -289,22 +293,17 @@ setInterval(() => {
             if (tile === 'v') ball.vy += speedForce;
 
             // Simple Wall/Door Bouncing
-            // (Checks the edges of the ball against tile boundaries)
             const checkWall = (gx, gy) => {
                 if (gy < 0 || gy >= MAP_BLUEPRINT.length || gx < 0 || gx >= MAP_BLUEPRINT[0].length) return true;
                 const t = MAP_BLUEPRINT[gy][gx];
                 
-                // It's a wall, OR it's a door and the door is currently active (closed)
                 if (t === '1') return true;
                 if (t === 'D') {
-                    // Find which door index this is to check its state
                     let doorIndex = 0;
                     for(let i=0; i<MAP_BLUEPRINT.length; i++) {
                         for(let j=0; j<MAP_BLUEPRINT[i].length; j++) {
                             if (MAP_BLUEPRINT[i][j] === 'D') {
-                                if (i === gy && j === gx) {
-                                    return activeDoors[doorIndex];
-                                }
+                                if (i === gy && j === gx) return activeDoors[doorIndex];
                                 doorIndex++;
                             }
                         }
