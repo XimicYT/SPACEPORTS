@@ -17,7 +17,7 @@ app.get('/health', (req, res) => {
 // Game State
 const players = {}; 
 const disconnectTimeouts = {}; 
-const PLAYER_RADIUS = 8;
+const PLAYER_RADIUS = 18;
 let tagCooldown = 0;
 
 // DOOR STATE: 8 doors total.
@@ -31,7 +31,7 @@ const doors = Array(MAX_DOORS).fill(null).map(() => ({
 // --- PHYSICS & MAP CONSTANTS ---
 const TILE_SIZE = 300; 
 // "A little more than about half the width of a hallway"
-const BALL_RADIUS = (TILE_SIZE / 2) + 10; 
+const BALL_RADIUS = (TILE_SIZE / 4) + 10; 
 const FRICTION = 0.96; 
 const BOUNCE = -0.7; // How bouncy the walls are
 
