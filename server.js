@@ -107,19 +107,26 @@ setInterval(() => {
 // DOOR CONTROLLER (Runs every second)
 setInterval(() => {
     const now = Date.now();
-    let closedCount = doors.filter(d => d > now).length;
+    
+    // FIXED: Compare against the closeUntil property, not the object itself
+    let closedCount = doors.filter(d => d.closeUntil > now).length;
     
     // Randomly close a door if we are under the max limit of 3
     if (closedCount < MAX_CLOSED_DOORS && Math.random() < 0.6) {
         let openIndices = [];
         for (let i = 0; i < doors.length; i++) {
-            if (doors[i] <= now) openIndices.push(i);
+            // FIXED: Check both closeUntil and cooldown properties
+            if (doors[i].closeUntil <= now && doors[i].cooldownUntil <= now) {
+                openIndices.push(i);
+            }
         }
         
         if (openIndices.length > 0) {
             let pick = openIndices[Math.floor(Math.random() * openIndices.length)];
-            // Close for a random time between 2 and 4 seconds
-            doors[pick] = now + 2000 + Math.random() * 2000;
+            
+            // FIXED: Update the object property, do not overwrite the whole object
+            doors[pick].closeUntil = now + 2000 + Math.random() * 2000;
+            doors[pick].cooldownUntil = doors[pick].closeUntil + 1500; // Gives players a 1.5s window before it can close again
         }
     }
 }, 1000);
