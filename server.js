@@ -206,27 +206,35 @@ setInterval(() => {
         ball.vx *= FRICTION;
         ball.vy *= FRICTION;
 
-        // --- PLAYER VS BALL COLLISIONS (Multiple people pushing) ---
+        // --- PLAYER VS BALL COLLISIONS (Billiard Physics) ---
         for (const pid in players) {
             const p = players[pid];
             const dx = ball.x - p.x;
             const dy = ball.y - p.y;
             const dist = Math.hypot(dx, dy);
-            const minDist = ball.radius + PLAYER_RADIUS;
+            
+            // Add a tiny buffer (+2) to catch high-speed impacts between server ticks
+            const minDist = ball.radius + PLAYER_RADIUS + 2; 
 
             if (dist < minDist && dist > 0) {
-                // Calculate overlap and push the ball away
                 const overlap = minDist - dist;
                 const nx = dx / dist;
                 const ny = dy / dist;
                 
-                // Displace ball out of the player to prevent getting stuck
+                // Displace ball strictly out of the player to prevent physics sticking
                 ball.x += nx * overlap;
                 ball.y += ny * overlap;
                 
-                // Add momentum from the push (scales with how hard they hit it)
-                ball.vx += nx * 1.5; 
-                ball.vy += ny * 1.5;
+                // Billiard Kinetic Transfer
+                // Calculate how fast the player is moving INTO the ball
+                const relativeVelocity = (p.vx * nx) + (p.vy * ny);
+                
+                if (relativeVelocity > 0) {
+                    // Ball takes the hit and flies off! 
+                    // 1.2 multiplier simulates the ball being lighter than the player's engines
+                    ball.vx += nx * relativeVelocity * 1.2; 
+                    ball.vy += ny * relativeVelocity * 1.2;
+                }
             }
         }
 
