@@ -103,7 +103,8 @@ setInterval(() => {
     if (now > tagCooldown) {
         const itId = Object.keys(players).find(id => players[id].isIt);
         
-        if (itId) {
+        // STUN FIX: Check that the 'It' player exists AND their stun timer has expired
+        if (itId && players[itId].stunnedUntil <= now) {
             const itPlayer = players[itId];
 
             for (const otherId in players) {
