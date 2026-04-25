@@ -20,10 +20,13 @@ const disconnectTimeouts = {};
 const PLAYER_RADIUS = 18;
 let tagCooldown = 0;
 
-// DOOR STATE: 8 doors total. Values store the timestamp of when they will open.
+// DOOR STATE: 8 doors total.
 const MAX_DOORS = 8;
 const MAX_CLOSED_DOORS = 3;
-const doors = Array(MAX_DOORS).fill(0); 
+const doors = Array(MAX_DOORS).fill(null).map(() => ({
+    closeUntil: 0,
+    cooldownUntil: 0
+})); 
 
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
@@ -47,7 +50,8 @@ io.on('connection', (socket) => {
         }
         
         // Send initial state
-        const activeDoors = doors.map(d => d > Date.now());
+        const now = Date.now();
+        const activeDoors = doors.map(d => d.closeUntil > now);
         socket.emit('gameState', { players, doors: activeDoors });
     });
 
@@ -148,7 +152,7 @@ setInterval(() => {
         }
     }
 
-    const activeDoors = doors.map(d => d > now);
+    const activeDoors = doors.map(d => d.closeUntil > now);
     io.emit('gameState', { players, doors: activeDoors });
 }, 1000 / 60);
 
