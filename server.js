@@ -28,6 +28,48 @@ const doors = Array(MAX_DOORS).fill(null).map(() => ({
     cooldownUntil: 0
 })); 
 
+// --- PHYSICS & MAP CONSTANTS ---
+const TILE_SIZE = 300; 
+// "A little more than about half the width of a hallway"
+const BALL_RADIUS = (TILE_SIZE / 2) + 10; 
+const FRICTION = 0.96; 
+const BOUNCE = -0.7; // How bouncy the walls are
+
+const MAP_BLUEPRINT = [
+    '111111111111111111111111111111111111111111111',
+    '10000>>>>>000D0000000000000000D00000<<<<<0001',
+    '101111111111011111111111111111111101111111101',
+    '100000000000000000000000000000000000000000001',
+    '10101111111111111111111110111111111111^110101',
+    '101011000S0000001000000D000000011100100010101',
+    '101011011111110110111111111011011100100010101',
+    '1^101000>>>>>000001000010000100<<<001000101v1',
+    '1^10101111111111011011011011110111101^0v101v1',
+    '1^10101000D00001000010010011000011100000101v1',
+    '1010101011111101011111011111110111001>>>10101',
+    '1010100011111100011111000001100001001^0v10101',
+    '10101^1011111101000000011010101101v01<<<10101',
+    '10101^1000000001011011011110100001v0100010001',
+    '101000111111010111v<<101111011101100100010101',
+    '101010000>>0010000>>^100000D0000000010^v>0101',
+    '101010111111110111>^<111111111111111100010101',
+    '1^10100000<<0000010001000000000000000000101^1',
+    '1^10111111111101110101011111111111101000101^1',
+    '1^10100000D00000000000000000000000001>^<101^1',
+    '101011111011111111111111111111111111100010101',
+    '101000000000000000000000000000000000000000101',
+    '101111111111111101111111111111111111111111101',
+    '10000<<<<<000D0000000000000000D00000>>>>>0001',
+    '111111111111111111111111111111111111111111111',
+];
+
+// Initialize Balls
+const balls = [
+    { id: 'b1', x: 200, y: 200, vx: 0, vy: 0, radius: BALL_RADIUS },
+    { id: 'b2', x: 1600, y: 800, vx: 0, vy: 0, radius: BALL_RADIUS },
+    { id: 'b3', x: 800, y: 200, vx: 0, vy: 0, radius: BALL_RADIUS }
+];
+
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
@@ -158,11 +200,134 @@ setInterval(() => {
             }
         }
     }
+// 2. BALL PHYSICS
+    balls.forEach(ball => {
+        // Apply Friction
+        ball.vx *= FRICTION;
+        ball.vy *= FRICTION;
 
-    const activeDoors = doors.map(d => d.closeUntil > now);
-    io.emit('gameState', { players, doors: activeDoors });
+        // --- PLAYER VS BALL COLLISIONS (Multiple people pushing) ---
+        for (const pid in players) {
+            const p = players[pid];
+            const dx = ball.x - p.x;
+            const dy = ball.y - p.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = ball.radius + PLAYER_RADIUS;
+
+            if (dist < minDist && dist > 0) {
+                // Calculate overlap and push the ball away
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                
+                // Displace ball out of the player to prevent getting stuck
+                ball.x += nx * overlap;
+                ball.y += ny * overlap;
+                
+                // Add momentum from the push (scales with how hard they hit it)
+                ball.vx += nx * 1.5; 
+                ball.vy += ny * 1.5;
+            }
+        }
+
+        // --- BALL VS BALL COLLISIONS ---
+        balls.forEach(otherBall => {
+            if (ball.id === otherBall.id) return;
+            const dx = otherBall.x - ball.x;
+            const dy = otherBall.y - ball.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = ball.radius + otherBall.radius;
+
+            if (dist < minDist && dist > 0) {
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+
+                // Push them apart equally
+                ball.x -= nx * (overlap / 2);
+                ball.y -= ny * (overlap / 2);
+                otherBall.x += nx * (overlap / 2);
+                otherBall.y += ny * (overlap / 2);
+
+                // Exchange momentum (Elastic bounce)
+                const kx = (ball.vx - otherBall.vx);
+                const ky = (ball.vy - otherBall.vy);
+                const p = (nx * kx + ny * ky); 
+                
+                ball.vx -= p * nx;
+                ball.vy -= p * ny;
+                otherBall.vx += p * nx;
+                otherBall.vy += p * ny;
+            }
+        });
+
+        // Apply Velocity to Position
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // --- TILE INTERACTIONS (Walls, Doors, Speed Pads) ---
+        // Get the grid coordinates of the ball's center
+        const gridX = Math.floor(ball.x / TILE_SIZE);
+        const gridY = Math.floor(ball.y / TILE_SIZE);
+
+        if (gridY >= 0 && gridY < MAP_BLUEPRINT.length && gridX >= 0 && gridX < MAP_BLUEPRINT[0].length) {
+            const tile = MAP_BLUEPRINT[gridY][gridX];
+
+            // Speed Pads
+            const speedForce = 0.8;
+            if (tile === '>') ball.vx += speedForce;
+            if (tile === '<') ball.vx -= speedForce;
+            if (tile === '^') ball.vy -= speedForce;
+            if (tile === 'v') ball.vy += speedForce;
+
+            // Simple Wall/Door Bouncing
+            // (Checks the edges of the ball against tile boundaries)
+            const checkWall = (gx, gy) => {
+                if (gy < 0 || gy >= MAP_BLUEPRINT.length || gx < 0 || gx >= MAP_BLUEPRINT[0].length) return true;
+                const t = MAP_BLUEPRINT[gy][gx];
+                
+                // It's a wall, OR it's a door and the door is currently active (closed)
+                if (t === '1') return true;
+                if (t === 'D') {
+                    // Find which door index this is to check its state
+                    let doorIndex = 0;
+                    for(let i=0; i<MAP_BLUEPRINT.length; i++) {
+                        for(let j=0; j<MAP_BLUEPRINT[i].length; j++) {
+                            if (MAP_BLUEPRINT[i][j] === 'D') {
+                                if (i === gy && j === gx) {
+                                    return activeDoors[doorIndex];
+                                }
+                                doorIndex++;
+                            }
+                        }
+                    }
+                }
+                return false;
+            };
+
+            // Bounce X
+            if (ball.vx > 0 && checkWall(Math.floor((ball.x + ball.radius) / TILE_SIZE), gridY)) {
+                ball.x = (Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE) - ball.radius - 1;
+                ball.vx *= BOUNCE;
+            } else if (ball.vx < 0 && checkWall(Math.floor((ball.x - ball.radius) / TILE_SIZE), gridY)) {
+                ball.x = (Math.floor(ball.x / TILE_SIZE) * TILE_SIZE) + ball.radius + 1;
+                ball.vx *= BOUNCE;
+            }
+
+            // Bounce Y
+            if (ball.vy > 0 && checkWall(gridX, Math.floor((ball.y + ball.radius) / TILE_SIZE))) {
+                ball.y = (Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE) - ball.radius - 1;
+                ball.vy *= BOUNCE;
+            } else if (ball.vy < 0 && checkWall(gridX, Math.floor((ball.y - ball.radius) / TILE_SIZE))) {
+                ball.y = (Math.floor(ball.y / TILE_SIZE) * TILE_SIZE) + ball.radius + 1;
+                ball.vy *= BOUNCE;
+            }
+        }
+    });
+
+    // 3. EMIT GAME STATE (Now includes balls!)
+    io.emit('gameState', { players, doors: activeDoors, balls });
 }, 1000 / 60);
-
 http.listen(PORT, () => {
     console.log(`Omicron L04 Server running on port ${PORT}`);
 });
