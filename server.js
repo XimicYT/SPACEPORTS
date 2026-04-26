@@ -344,8 +344,10 @@ setInterval(() => {
         }
     });
 
-    // 3. EMIT GAME STATE (Now includes balls!)
-    io.emit('gameState', { players, doors: activeDoors, balls });
+    // 3. EMIT GAME STATE (Now includes minified balls!)
+    const minifiedBalls = balls.map(b => [b.id, Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy)]);
+    
+    io.volatile.emit('gameState', { players, doors: activeDoors, balls: minifiedBalls });
 }, 1000 / 60);
 http.listen(PORT, () => {
     console.log(`Omicron L04 Server running on port ${PORT}`);
