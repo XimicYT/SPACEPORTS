@@ -64,10 +64,11 @@ const MAP_BLUEPRINT = [
 ];
 
 // Initialize Balls
+// Initialize Balls
 const balls = [
-    { id: 'b1', x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS },
-    { id: 'b2', x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS },
-    { id: 'b3', x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS }
+    { id: 'b1', x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 750, startY: 450, padTime: 0 },
+    { id: 'b2', x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1950, startY: 3450, padTime: 0 },
+    { id: 'b3', x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 5850, padTime: 0 }
 ];
 
 io.on('connection', (socket) => {
@@ -125,9 +126,9 @@ io.on('connection', (socket) => {
         const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; // 150px leeway for latency
 
         if (dist < maxValidDistance) {
-            // NEW: Divide by 60 to convert player speed (per sec) to ball speed (per frame)
-            // The 0.8 at the end is the "weight" modifier. Lower = heavier ball.
-            const impulse = (data.impactSpeed / 60) * 0.8; 
+            // NEW: Increased the weight modifier from 0.8 to 1.6
+            // This makes the ball "lighter", taking much more momentum from your strikes.
+            const impulse = (data.impactSpeed / 60) * 1.6; 
             
             ball.vx -= data.nx * impulse;
             ball.vy -= data.ny * impulse;
@@ -272,12 +273,31 @@ setInterval(() => {
         if (gridY >= 0 && gridY < MAP_BLUEPRINT.length && gridX >= 0 && gridX < MAP_BLUEPRINT[0].length) {
             const tile = MAP_BLUEPRINT[gridY][gridX];
 
-            // Speed Pads
+           // Speed Pads & Anti-Vortex Respawn Logic
             const speedForce = 0.8;
-            if (tile === '>') ball.vx += speedForce;
-            if (tile === '<') ball.vx -= speedForce;
-            if (tile === '^') ball.vy -= speedForce;
-            if (tile === 'v') ball.vy += speedForce;
+            let onPad = false;
+
+            if (tile === '>') { ball.vx += speedForce; onPad = true; }
+            if (tile === '<') { ball.vx -= speedForce; onPad = true; }
+            if (tile === '^') { ball.vy -= speedForce; onPad = true; }
+            if (tile === 'v') { ball.vy += speedForce; onPad = true; }
+
+            if (onPad) {
+                // Add ~16.6ms (one frame at 60fps) to the timer
+                ball.padTime += (1000 / 60); 
+                
+                // If it's been on a pad for more than 15 seconds (15000 ms), RESPAWN IT
+                if (ball.padTime >= 15000) {
+                    ball.x = ball.startX;
+                    ball.y = ball.startY;
+                    ball.vx = 0;
+                    ball.vy = 0;
+                    ball.padTime = 0;
+                }
+            } else {
+                // Reset the timer instantly if it touches a normal floor/wall
+                ball.padTime = 0; 
+            }
 
             // Simple Wall/Door Bouncing
             // (Checks the edges of the ball against tile boundaries)
