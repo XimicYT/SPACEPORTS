@@ -125,8 +125,10 @@ io.on('connection', (socket) => {
         const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; // 150px leeway for latency
 
         if (dist < maxValidDistance) {
-            // Apply the impulse to the ball instantly
-            const impulse = data.impactSpeed * 1.2 * 0.4; 
+            // NEW: Divide by 60 to convert player speed (per sec) to ball speed (per frame)
+            // The 0.8 at the end is the "weight" modifier. Lower = heavier ball.
+            const impulse = (data.impactSpeed / 60) * 0.8; 
+            
             ball.vx += data.nx * impulse;
             ball.vy += data.ny * impulse;
         }
