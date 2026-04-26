@@ -112,9 +112,11 @@ io.on('connection', (socket) => {
     }); 
 
     // --- INSTANT BALL STRIKE LISTENER ---
+    // --- INSTANT BALL STRIKE LISTENER ---
     socket.on('ballStrike', (data) => {
-        const p = players[socket.id];
-        const ball = balls[data.ballId]; // Make sure your server ball array is named correctly here
+        // FIXED: We must look up the player using socket.sessionId, not socket.id!
+        const p = players[socket.sessionId];
+        const ball = balls[data.ballId]; 
         
         if (!p || !ball) return;
 
