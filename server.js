@@ -18,7 +18,6 @@ app.get("/health", (req, res) => {
 
 // Game State
 const players = {};
-const disconnectTimeouts = {};
 const PLAYER_RADIUS = 18;
 let tagCooldown = 0;
 
@@ -109,11 +108,7 @@ io.on("connection", (socket) => {
   socket.on("initSession", (sessionId) => {
     socket.sessionId = sessionId;
 
-    if (disconnectTimeouts[sessionId]) {
-      clearTimeout(disconnectTimeouts[sessionId]);
-      delete disconnectTimeouts[sessionId];
-      console.log(`Session reconnected: ${sessionId}`);
-    } else if (!players[sessionId]) {
+    if (!players[sessionId]) {
       console.log(`New session created: ${sessionId}`);
       const isFirstPlayer = Object.keys(players).length === 0;
       players[sessionId] = {
@@ -125,6 +120,10 @@ io.on("connection", (socket) => {
         lastHeartbeat: Date.now(),
         stunnedUntil: 0,
       };
+    } else {
+      console.log(`Session reconnected: ${sessionId}`);
+      // CRITICAL FIX: Update heartbeat so the sweeper doesn't kill them
+      players[sessionId].lastHeartbeat = Date.now(); 
     }
 
     // Send initial state
@@ -145,6 +144,7 @@ io.on("connection", (socket) => {
     players[socket.sessionId].y = data.y;
     players[socket.sessionId].vx = data.vx;
     players[socket.sessionId].vy = data.vy;
+    players[socket.sessionId].lastHeartbeat = Date.now(); // CRITICAL FIX
   });
 
   // --- INSTANT BALL STRIKE LISTENER ---
@@ -156,6 +156,7 @@ io.on("connection", (socket) => {
 
     if (!p || !ball) return;
 
+    p.lastHeartbeat = Date.now(); // CRITICAL FIX
     // Anti-Cheat / Lag Compensation Check: Ensure the player is actually near the ball
     const dist = Math.hypot(ball.x - p.x, ball.y - p.y);
     const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; // 150px leeway for latency
@@ -171,12 +172,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    const sessionId = socket.sessionId;
-    if (!sessionId || !players[sessionId]) return;
-
-    disconnectTimeouts[sessionId] = setTimeout(() => {
-      removePlayer(sessionId);
-    }, 10000);
+    // We intentionally do nothing here!
+    // If the player truly left, the Zombie Garbage Collector will sweep them up in 15s.
+    // This prevents the dreaded refresh race condition.
+    console.log(`Socket disconnected: ${socket.id}`);
   });
 });
 
@@ -185,7 +184,7 @@ function removePlayer(sessionId) {
   console.log(`Session expired and removed: ${sessionId}`);
   const wasIt = players[sessionId].isIt;
   delete players[sessionId];
-  delete disconnectTimeouts[sessionId];
+  // No more delete disconnectTimeouts[sessionId] here
 
   const remainingPlayers = Object.keys(players);
   if (wasIt && remainingPlayers.length > 0) {
