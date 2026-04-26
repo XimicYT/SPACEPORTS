@@ -129,8 +129,8 @@ io.on('connection', (socket) => {
             // The 0.8 at the end is the "weight" modifier. Lower = heavier ball.
             const impulse = (data.impactSpeed / 60) * 0.8; 
             
-            ball.vx += data.nx * impulse;
-            ball.vy += data.ny * impulse;
+            ball.vx -= data.nx * impulse;
+            ball.vy -= data.ny * impulse;
         }
     });
 
