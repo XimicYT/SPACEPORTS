@@ -206,27 +206,40 @@ setInterval(() => {
         ball.vx *= FRICTION;
         ball.vy *= FRICTION;
 
-        // --- PLAYER VS BALL COLLISIONS (Multiple people pushing) ---
+        // --- PLAYER VS BALL COLLISIONS (Solid Billiard Physics) ---
         for (const pid in players) {
             const p = players[pid];
             const dx = ball.x - p.x;
             const dy = ball.y - p.y;
             const dist = Math.hypot(dx, dy);
-            const minDist = ball.radius + PLAYER_RADIUS;
+            
+            // We add a +2 buffer because the client is now instantly ejecting itself out of the ball
+            const minDist = ball.radius + PLAYER_RADIUS + 2;
 
             if (dist < minDist && dist > 0) {
-                // Calculate overlap and push the ball away
-                const overlap = minDist - dist;
                 const nx = dx / dist;
                 const ny = dy / dist;
-                
-                // Displace ball out of the player to prevent getting stuck
-                ball.x += nx * overlap;
-                ball.y += ny * overlap;
-                
-                // Add momentum from the push (scales with how hard they hit it)
-                ball.vx += nx * 1.5; 
-                ball.vy += ny * 1.5;
+
+                // Only slightly displace the ball if there is true overlap 
+                const actualOverlap = (ball.radius + PLAYER_RADIUS) - dist;
+                if (actualOverlap > 0) {
+                    ball.x += nx * (actualOverlap * 0.5);
+                    ball.y += ny * (actualOverlap * 0.5);
+                }
+
+                // Proper Impulse-Based Momentum Transfer
+                const relVx = p.vx - ball.vx;
+                const relVy = p.vy - ball.vy;
+                const impactSpeed = relVx * nx + relVy * ny;
+
+                // Only transfer momentum if they are colliding and moving towards each other
+                if (impactSpeed > 0) {
+                    // 1.2 is the elastic bounciness, 0.4 represents the mass ratio (ball is heavier than player)
+                    const impulse = impactSpeed * 1.2 * 0.4; 
+                    
+                    ball.vx += nx * impulse;
+                    ball.vy += ny * impulse;
+                }
             }
         }
 
