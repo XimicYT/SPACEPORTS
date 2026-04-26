@@ -109,6 +109,25 @@ io.on('connection', (socket) => {
         players[socket.sessionId].y = data.y;
         players[socket.sessionId].vx = data.vx;
         players[socket.sessionId].vy = data.vy;
+    }); 
+
+    // --- INSTANT BALL STRIKE LISTENER ---
+    socket.on('ballStrike', (data) => {
+        const p = players[socket.id];
+        const ball = balls[data.ballId]; // Make sure your server ball array is named correctly here
+        
+        if (!p || !ball) return;
+
+        // Anti-Cheat / Lag Compensation Check: Ensure the player is actually near the ball
+        const dist = Math.hypot(ball.x - p.x, ball.y - p.y);
+        const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; // 150px leeway for latency
+
+        if (dist < maxValidDistance) {
+            // Apply the impulse to the ball instantly
+            const impulse = data.impactSpeed * 1.2 * 0.4; 
+            ball.vx += data.nx * impulse;
+            ball.vy += data.ny * impulse;
+        }
     });
 
     socket.on('disconnect', () => {
@@ -205,43 +224,6 @@ setInterval(() => {
         // Apply Friction
         ball.vx *= FRICTION;
         ball.vy *= FRICTION;
-
-        // --- PLAYER VS BALL COLLISIONS (Solid Billiard Physics) ---
-        for (const pid in players) {
-            const p = players[pid];
-            const dx = ball.x - p.x;
-            const dy = ball.y - p.y;
-            const dist = Math.hypot(dx, dy);
-            
-            // We add a +2 buffer because the client is now instantly ejecting itself out of the ball
-            const minDist = ball.radius + PLAYER_RADIUS + 2;
-
-            if (dist < minDist && dist > 0) {
-                const nx = dx / dist;
-                const ny = dy / dist;
-
-                // Only slightly displace the ball if there is true overlap 
-                const actualOverlap = (ball.radius + PLAYER_RADIUS) - dist;
-                if (actualOverlap > 0) {
-                    ball.x += nx * (actualOverlap * 0.5);
-                    ball.y += ny * (actualOverlap * 0.5);
-                }
-
-                // Proper Impulse-Based Momentum Transfer
-                const relVx = p.vx - ball.vx;
-                const relVy = p.vy - ball.vy;
-                const impactSpeed = relVx * nx + relVy * ny;
-
-                // Only transfer momentum if they are colliding and moving towards each other
-                if (impactSpeed > 0) {
-                    // 1.2 is the elastic bounciness, 0.4 represents the mass ratio (ball is heavier than player)
-                    const impulse = impactSpeed * 1.2 * 0.4; 
-                    
-                    ball.vx += nx * impulse;
-                    ball.vy += ny * impulse;
-                }
-            }
-        }
 
         // --- BALL VS BALL COLLISIONS ---
         balls.forEach(otherBall => {
