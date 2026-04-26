@@ -40,68 +40,62 @@ const FRICTION = 0.96;
 const BOUNCE = -0.7; // How bouncy the walls are
 
 const MAP_BLUEPRINT = [
-  "111111111111111111111111111111111111111111111",
-  "10000>>>>>000D0000000000000000D00000<<<<<0001",
-  "101111111111011111111111111111111101111111101",
-  "100000000000000000000000000000000000000000001",
-  "10101111111111111111111110111111111111^110101",
-  "101011000S0000001000000D000000011100100010101",
-  "101011011111110110111111111011011100100010101",
-  "1^101000>>>>>000001000010000100<<<001000101v1",
-  "1^10101111111111011011011011110111101^0v101v1",
-  "1^10101000D00001000010010011000011100000101v1",
-  "1010101011111101011111011111110111001>>>10101",
-  "1010100011111100011111000001100001001^0v10101",
-  "10101^1011111101000000011010101101v01<<<10101",
-  "10101^1000000001011011011110100001v0100010001",
-  "101000111111010111v<<101111011101100100010101",
-  "101010000>>0010000>>^100000D0000000010^v>0101",
-  "101010111111110111>^<111111111111111100010101",
-  "1^10100000<<0000010001000000000000000000101^1",
-  "1^10111111111101110101011111111111101000101^1",
-  "1^10100000D00000000000000000000000001>^<101^1",
-  "101011111011111111111111111111111111100010101",
-  "101000000000000000000000000000000000000000101",
-  "101111111111111101111111111111111111111111101",
-  "10000<<<<<000D0000000000000000D00000>>>>>0001",
-  "111111111111111111111111111111111111111111111",
-];
+            '111111111111111111111111111111111111111111111',
+            '10000>>>>>000D0000000000000000D00000<<<<<0001',
+            '101111111111011111111111111111111101111111101',
+            '1A00000000000000000000000000000000000000000A1', // <-- PAC-MAN LOOP 1 (Orange)
+            '10101111111111111111111110111111111111^110101',
+            '101011000S0000001000000D000000011100100010101',
+            '101011011111110110111111111011011100100010101',
+            '1^101000>>>>>000001000010000100<<<001000101v1',
+            '1^10101111111111011011011011110111101^0v101v1',
+            '1^10101000D00001000010010011000011100000101v1',
+            '1010101011111101011111011111110111001>>>10101',
+            '1010100011111100011111000001100001001^0v10101',
+            '10101^1011111101000000011010101101v01<<<10101',
+            '10101^1000000001011011011110100001v0100010001',
+            '101000111111010111v<<101111011101100100010101', 
+            '101010000>>0010000>>^100000D0000000010^v>0101', 
+            '101010111111110111>^<111111111111111100010101', 
+            '1^10100000<<0000010001000000000000000000101^1',
+            '1^10111111111101110101011111111111101000101^1',
+            '1^10100000D00000000000000000000000001>^<101^1',
+            '101011111011111111111111111111111111100010101',
+            '1B10000000000000000000000000000000000000001B1', // <-- PAC-MAN LOOP 2 (Purple)
+            '101111111111111101111111111111111111111111101',
+            '10000<<<<<000D0000000000000000D00000>>>>>0001',
+            '111111111111111111111111111111111111111111111',
+        ];
+// --- WORMHOLE SETUP ---
+const wormholes = [];
+const linkedWormholes = {};
 
+for (let r = 0; r < MAP_BLUEPRINT.length; r++) {
+  for (let c = 0; c < MAP_BLUEPRINT[r].length; c++) {
+    let tile = MAP_BLUEPRINT[r][c];
+    if (tile === "A" || tile === "B") {
+      wormholes.push({
+        id: `${tile}_${c}_${r}`,
+        type: tile,
+        cx: c * TILE_SIZE + TILE_SIZE / 2,
+        cy: r * TILE_SIZE + TILE_SIZE / 2,
+      });
+    }
+  }
+}
+
+// Link them together based on their type (A goes to A, B goes to B)
+wormholes.forEach((w1) => {
+  linkedWormholes[w1.id] = wormholes.find(
+    (w2) => w2.type === w1.type && w2.id !== w1.id
+  );
+});
+// Initialize Balls (Notice IDs are now numbers: 1, 2, 3)
 // Initialize Balls (Notice IDs are now numbers: 1, 2, 3)
 const balls = [
-  {
-    id: 1,
-    x: 750,
-    y: 450,
-    vx: 0,
-    vy: 0,
-    radius: BALL_RADIUS,
-    startX: 750,
-    startY: 450,
-    padTime: 0,
-  },
-  {
-    id: 2,
-    x: 1950,
-    y: 3450,
-    vx: 0,
-    vy: 0,
-    radius: BALL_RADIUS,
-    startX: 1950,
-    startY: 3450,
-    padTime: 0,
-  },
-  {
-    id: 3,
-    x: 9150,
-    y: 5850,
-    vx: 0,
-    vy: 0,
-    radius: BALL_RADIUS,
-    startX: 9150,
-    startY: 5850,
-    padTime: 0,
-  },
+  { id: 1, x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 750, startY: 450, padTime: 0, teleportCooldown: 0 },
+  { id: 2, x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1950, startY: 3450, padTime: 0, teleportCooldown: 0 },
+  { id: 3, x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 5850, padTime: 0, teleportCooldown: 0 },
 ];
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
@@ -124,6 +118,7 @@ io.on("connection", (socket) => {
         isIt: isFirstPlayer,
         lastHeartbeat: Date.now(),
         stunnedUntil: 0,
+        teleportCooldown: 0, // <-- ADD THIS
       };
     }
 
@@ -232,11 +227,37 @@ setInterval(() => {
     }
   }
 }, 1000);
+function checkWormholes(entity) {
+  if (entity.teleportCooldown > 0) {
+    entity.teleportCooldown--;
+    return;
+  }
 
+  for (let w of wormholes) {
+    let dx = entity.x - w.cx;
+    let dy = entity.y - w.cy;
+
+    // If the entity gets close enough to the center of the pad
+    if (Math.hypot(dx, dy) < TILE_SIZE / 2) {
+      let partner = linkedWormholes[w.id];
+      if (partner) {
+        entity.x = partner.cx;
+        entity.y = partner.cy;
+        entity.teleportCooldown = 30; // Half a second cooldown (at 60fps)
+      }
+      break;
+    }
+  }
+}
 // SERVER TICK - 60 FPS
 setInterval(() => {
   const now = Date.now();
   const activeDoors = doors.map((d) => d.closeUntil > now);
+
+  // --- NEW: CHECK WORMHOLES ---
+  for (const id in players) checkWormholes(players[id]);
+  for (const b of balls) checkWormholes(b);
+  
   if (now > tagCooldown) {
     const itId = Object.keys(players).find((id) => players[id].isIt);
 
