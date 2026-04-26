@@ -62,41 +62,6 @@ const MAP_BLUEPRINT = [
     '10000<<<<<000D0000000000000000D00000>>>>>0001',
     '111111111111111111111111111111111111111111111',
 ];
-// --- GLOBAL HELPER FUNCTIONS ---
-
-// 1. Map the doors so the server knows their exact indexes
-const doorMap = [];
-for (let r = 0; r < MAP_BLUEPRINT.length; r++) {
-    for (let c = 0; c < MAP_BLUEPRINT[r].length; c++) {
-        if (MAP_BLUEPRINT[r][c] === 'D') doorMap.push({ r, c });
-    }
-}
-const getDoorIndex = (r, c) => doorMap.findIndex(d => d.r === r && d.c === c);
-
-// 2. Global Perfect Circle-to-Box Collision
-const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
-
-const resolveWallCollision = (entity, radius, wallX, wallY, wallW, wallH) => {
-    let closestX = clamp(entity.x, wallX, wallX + wallW);
-    let closestY = clamp(entity.y, wallY, wallY + wallH);
-
-    let dx = entity.x - closestX;
-    let dy = entity.y - closestY;
-    let distanceSquared = (dx * dx) + (dy * dy);
-
-    if (distanceSquared < (radius * radius) && distanceSquared > 0) {
-        let distance = Math.sqrt(distanceSquared);
-        let overlap = radius - distance;
-        
-        // Eject entity mathematically
-        entity.x += (dx / distance) * overlap;
-        entity.y += (dy / distance) * overlap;
-        
-        // Reflect velocity based on which side was hit
-        if (closestX === wallX || closestX === wallX + wallW) entity.vx *= BOUNCE;
-        if (closestY === wallY || closestY === wallY + wallH) entity.vy *= BOUNCE;
-    }
-};
 
 // Initialize Balls
 const balls = [
@@ -138,16 +103,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Replace socket.on('playerMove') in server.js
-socket.on('playerInput', (data) => {
-    if (!socket.sessionId || !players[socket.sessionId]) return;
-    const p = players[socket.sessionId];
-    
-    // Accept input intent, not absolute position
-    p.inputX = data.dx; // -1, 0, or 1
-    p.inputY = data.dy; // -1, 0, or 1
-    p.sequence = data.sequence; // Tracking for reconciliation
-});
+    socket.on('playerMove', (data) => {
+        if (!socket.sessionId || !players[socket.sessionId]) return;
+        players[socket.sessionId].x = data.x;
+        players[socket.sessionId].y = data.y;
+        players[socket.sessionId].vx = data.vx;
+        players[socket.sessionId].vy = data.vy;
+    });
 
     socket.on('disconnect', () => {
         const sessionId = socket.sessionId;
@@ -212,12 +174,8 @@ setInterval(() => {
 }, 1000);
 
 // SERVER TICK - 60 FPS
-let lastTick = Date.now();
-
 setInterval(() => {
     const now = Date.now();
-    const dt = (now - lastTick) / 1000; // Calculate delta time in seconds
-    lastTick = now;
     const activeDoors = doors.map(d => d.closeUntil > now);
     if (now > tagCooldown) {
         const itId = Object.keys(players).find(id => players[id].isIt);
@@ -242,85 +200,37 @@ setInterval(() => {
             }
         }
     }
-    // 1.5 SERVER-AUTHORITATIVE PLAYER PHYSICS & COLLISIONS
-    for (const id in players) {
-        let p = players[id];
-        let accel = 1200; // Matches frontend player.accel
-        
-        // A. Apply input to velocity
-        if (p.inputX) p.vx += p.inputX * accel * dt;
-        if (p.inputY) p.vy += p.inputY * accel * dt;
-        
-        // B. Friction/Drift decay (Matches frontend player.friction = 0.985)
-        p.vx *= Math.pow(0.985, dt * 60);
-        p.vy *= Math.pow(0.985, dt * 60);
-        
-        // C. Apply velocity to position
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-
-        // D. Server-Side Wall Collisions for Players
-        const pGridX = Math.floor(p.x / TILE_SIZE);
-        const pGridY = Math.floor(p.y / TILE_SIZE);
-        
-        let pStartR = Math.max(0, pGridY - 1); let pEndR = Math.min(MAP_BLUEPRINT.length - 1, pGridY + 1);
-        let pStartC = Math.max(0, pGridX - 1); let pEndC = Math.min(MAP_BLUEPRINT[0].length - 1, pGridX + 1);
-
-        for (let r = pStartR; r <= pEndR; r++) {
-            for (let c = pStartC; c <= pEndC; c++) {
-                const t = MAP_BLUEPRINT[r][c];
-                if (t === '1') {
-                    resolveWallCollision(p, PLAYER_RADIUS, c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                } else if (t === 'D') {
-                    let doorIndex = getDoorIndex(r, c);
-                    if (doorIndex !== -1 && activeDoors[doorIndex]) {
-                        resolveWallCollision(p, PLAYER_RADIUS, c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    }
-                }
-            }
-        }
-    }
 // 2. BALL PHYSICS
     balls.forEach(ball => {
-        // Friction adjusted for dt (60 frames per second standard)
-        ball.vx *= Math.pow(FRICTION, dt * 60);
-        ball.vy *= Math.pow(FRICTION, dt * 60);
+        // Apply Friction
+        ball.vx *= FRICTION;
+        ball.vy *= FRICTION;
 
-        // --- PLAYER VS BALL COLLISIONS (Lag-Resistant Billiard Physics) ---
+        // --- PLAYER VS BALL COLLISIONS (Multiple people pushing) ---
         for (const pid in players) {
             const p = players[pid];
             const dx = ball.x - p.x;
             const dy = ball.y - p.y;
             const dist = Math.hypot(dx, dy);
-            
-            // Add a tiny buffer (+2) to catch high-speed impacts between server ticks
-            const minDist = ball.radius + PLAYER_RADIUS + 2; 
+            const minDist = ball.radius + PLAYER_RADIUS;
 
             if (dist < minDist && dist > 0) {
+                // Calculate overlap and push the ball away
                 const overlap = minDist - dist;
                 const nx = dx / dist;
                 const ny = dy / dist;
                 
-                // Displace ball strictly out of the player to prevent physics sticking
+                // Displace ball out of the player to prevent getting stuck
                 ball.x += nx * overlap;
                 ball.y += ny * overlap;
                 
-                // FIXED: Convert player velocity from units/second to units/frame!
-                const pVxFrame = p.vx / 60;
-                const pVyFrame = p.vy / 60;
-
-                // Calculate relative velocity so we only push the ball if we are moving FASTER than it
-                const relV = ((pVxFrame - ball.vx) * nx) + ((pVyFrame - ball.vy) * ny);
-                
-                if (relV > 0) {
-                    // Ball takes the hit! 1.2 simulates the ball being lighter than the player's engines
-                    ball.vx += nx * relV * 1.2; 
-                    ball.vy += ny * relV * 1.2;
-                }
+                // Add momentum from the push (scales with how hard they hit it)
+                ball.vx += nx * 1.5; 
+                ball.vy += ny * 1.5;
             }
         }
 
-        // --- BALL VS BALL COLLISIONS (Fixed Momentum Transfer) ---
+        // --- BALL VS BALL COLLISIONS ---
         balls.forEach(otherBall => {
             if (ball.id === otherBall.id) return;
             const dx = otherBall.x - ball.x;
@@ -339,26 +249,24 @@ setInterval(() => {
                 otherBall.x += nx * (overlap / 2);
                 otherBall.y += ny * (overlap / 2);
 
-                // Safely exchange momentum only if moving towards each other
-                const relV = ((ball.vx - otherBall.vx) * nx) + ((ball.vy - otherBall.vy) * ny);
-                if (relV > 0) {
-                    ball.vx -= nx * relV * 0.5;
-                    ball.vy -= ny * relV * 0.5;
-                    otherBall.vx += nx * relV * 0.5;
-                    otherBall.vy += ny * relV * 0.5;
-                }
+                // Exchange momentum (Elastic bounce)
+                const kx = (ball.vx - otherBall.vx);
+                const ky = (ball.vy - otherBall.vy);
+                const p = (nx * kx + ny * ky); 
+                
+                ball.vx -= p * nx;
+                ball.vy -= p * ny;
+                otherBall.vx += p * nx;
+                otherBall.vy += p * ny;
             }
         });
 
-        // SAFETY NET: Hard cap the ball's speed so it can never tunnel through walls again
-        ball.vx = Math.max(-100, Math.min(100, ball.vx));
-        ball.vy = Math.max(-100, Math.min(100, ball.vy));
-
-        // Apply velocity to position based on dt
-        ball.x += ball.vx * (dt * 60); 
-        ball.y += ball.vy * (dt * 60);
+        // Apply Velocity to Position
+        ball.x += ball.vx;
+        ball.y += ball.vy;
 
         // --- TILE INTERACTIONS (Walls, Doors, Speed Pads) ---
+        // Get the grid coordinates of the ball's center
         const gridX = Math.floor(ball.x / TILE_SIZE);
         const gridY = Math.floor(ball.y / TILE_SIZE);
 
@@ -372,23 +280,47 @@ setInterval(() => {
             if (tile === '^') ball.vy -= speedForce;
             if (tile === 'v') ball.vy += speedForce;
 
-            // Check surrounding 9 tiles for the ball
-            let startR = Math.max(0, gridY - 1); let endR = Math.min(MAP_BLUEPRINT.length - 1, gridY + 1);
-            let startC = Math.max(0, gridX - 1); let endC = Math.min(MAP_BLUEPRINT[0].length - 1, gridX + 1);
-
-            for (let r = startR; r <= endR; r++) {
-                for (let c = startC; c <= endC; c++) {
-                    const t = MAP_BLUEPRINT[r][c];
-                    if (t === '1') {
-                        // Uses the GLOBAL function we just added at the top
-                        resolveWallCollision(ball, ball.radius, c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    } else if (t === 'D') {
-                        let doorIndex = getDoorIndex(r, c);
-                        if (doorIndex !== -1 && activeDoors[doorIndex]) {
-                            resolveWallCollision(ball, ball.radius, c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            // Simple Wall/Door Bouncing
+            // (Checks the edges of the ball against tile boundaries)
+            const checkWall = (gx, gy) => {
+                if (gy < 0 || gy >= MAP_BLUEPRINT.length || gx < 0 || gx >= MAP_BLUEPRINT[0].length) return true;
+                const t = MAP_BLUEPRINT[gy][gx];
+                
+                // It's a wall, OR it's a door and the door is currently active (closed)
+                if (t === '1') return true;
+                if (t === 'D') {
+                    // Find which door index this is to check its state
+                    let doorIndex = 0;
+                    for(let i=0; i<MAP_BLUEPRINT.length; i++) {
+                        for(let j=0; j<MAP_BLUEPRINT[i].length; j++) {
+                            if (MAP_BLUEPRINT[i][j] === 'D') {
+                                if (i === gy && j === gx) {
+                                    return activeDoors[doorIndex];
+                                }
+                                doorIndex++;
+                            }
                         }
                     }
                 }
+                return false;
+            };
+
+            // Bounce X
+            if (ball.vx > 0 && checkWall(Math.floor((ball.x + ball.radius) / TILE_SIZE), gridY)) {
+                ball.x = (Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE) - ball.radius - 1;
+                ball.vx *= BOUNCE;
+            } else if (ball.vx < 0 && checkWall(Math.floor((ball.x - ball.radius) / TILE_SIZE), gridY)) {
+                ball.x = (Math.floor(ball.x / TILE_SIZE) * TILE_SIZE) + ball.radius + 1;
+                ball.vx *= BOUNCE;
+            }
+
+            // Bounce Y
+            if (ball.vy > 0 && checkWall(gridX, Math.floor((ball.y + ball.radius) / TILE_SIZE))) {
+                ball.y = (Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE) - ball.radius - 1;
+                ball.vy *= BOUNCE;
+            } else if (ball.vy < 0 && checkWall(gridX, Math.floor((ball.y - ball.radius) / TILE_SIZE))) {
+                ball.y = (Math.floor(ball.y / TILE_SIZE) * TILE_SIZE) + ball.radius + 1;
+                ball.vy *= BOUNCE;
             }
         }
     });
