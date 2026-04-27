@@ -35,8 +35,8 @@ const doors = Array(MAX_DOORS)
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
-const FRICTION = 0.96;
-const BOUNCE = -0.7; // How bouncy the walls are
+const FRICTION = 0.98;
+const BOUNCE = -0.85; // How bouncy the walls are
 
 const MAP_BLUEPRINT = [
   "111111111111111111111111111111111111111111111",
@@ -236,6 +236,7 @@ setInterval(() => {
 setInterval(() => {
   const now = Date.now();
   const activeDoors = doors.map((d) => d.closeUntil > now);
+  
   if (now > tagCooldown) {
     const itId = Object.keys(players).find((id) => players[id].isIt);
 
@@ -248,7 +249,11 @@ setInterval(() => {
         const p = players[otherId];
         const dist = Math.hypot(itPlayer.x - p.x, itPlayer.y - p.y);
 
-        if (dist < PLAYER_RADIUS * 2) {
+        // --- UPDATED TAG RANGE ---
+        // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
+        const TAG_REACH = 15; 
+        
+        if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
           players[itId].isIt = false;
           players[otherId].isIt = true;
           players[otherId].stunnedUntil = now + 2500;
@@ -259,6 +264,7 @@ setInterval(() => {
       }
     }
   }
+
   // 2. BALL PHYSICS
   balls.forEach((ball) => {
     // Apply Friction
