@@ -35,7 +35,7 @@ const doors = Array(MAX_DOORS)
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
-const FRICTION = 1;
+const FRICTION = 0.101;
 const BOUNCE = -0.85; // How bouncy the walls are
 
 const MAP_BLUEPRINT = [
