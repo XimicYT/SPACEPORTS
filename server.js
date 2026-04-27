@@ -67,6 +67,7 @@ const MAP_BLUEPRINT = [
   "111111111111111111111111111111111111111111111",
 ];
 // Initialize Balls (Fixed positions to avoid walls)
+// Initialize Balls (Positions adjusted to ensure they are centered on floor tiles)
 const balls = [
   { id: 1, x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 750, startY: 450, padTime: 0 },
   { id: 2, x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1950, startY: 3450, padTime: 0 },
@@ -74,17 +75,17 @@ const balls = [
   { id: 4, x: 450, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 1050, padTime: 0 },
   { id: 5, x: 450, y: 7050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 7050, padTime: 0 },
   
-  // FIXED: Ball 6 was inside a wall at Col 24. Moved to Col 21 (Floor).
-  { id: 6, x: 6450, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6450, startY: 4050, padTime: 0 },
+  // FIXED: Moved to Col 22 (Floor) to avoid the wall at Col 21
+  { id: 6, x: 6750, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 4050, padTime: 0 },
   
-  // FIXED: Ball 7 was at Col 41 (Wall). Moved to Col 40 (Floor).
-  { id: 7, x: 12150, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12150, startY: 3450, padTime: 0 },
+  // FIXED: Moved to Col 42 (Floor). Previous Col 40 was a 1x1 gap that often caused "sticking"
+  { id: 7, x: 12750, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12750, startY: 3450, padTime: 0 },
   
   { id: 8, x: 6150, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6150, startY: 6450, padTime: 0 },
   { id: 9, x: 9150, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 450, padTime: 0 },
 
-  // FIXED: Ball 10 was at Col 42 (Wall). Moved to Col 41 (Floor).
-  { id: 10, x: 12450, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12450, startY: 6450, padTime: 0 },
+  // FIXED: Moved to Col 43 (Floor) to give it more breathing room from the edge wall
+  { id: 10, x: 13050, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 13050, startY: 6450, padTime: 0 },
 
   { id: 11, x: 6750, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 1050, padTime: 0 },
   { id: 12, x: 3750, y: 1650, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 3750, startY: 1650, padTime: 0 },
