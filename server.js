@@ -34,9 +34,9 @@ const doors = Array(MAX_DOORS)
 // --- PHYSICS & MAP CONSTANTS ---
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
-const BALL_RADIUS = TILE_SIZE / 2;
+const BALL_RADIUS = TILE_SIZE / 1.5;
 const FRICTION = 1;
-const BOUNCE = -1.0000001; // How bouncy the walls are
+const BOUNCE = -1.15; // How bouncy the walls are
 
 const MAP_BLUEPRINT = [
   "111111111111111111111111111111111111111111111",
