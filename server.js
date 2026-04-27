@@ -35,38 +35,6 @@ const doors = Array(MAX_DOORS)
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
-// --- POWER-UP CONSTANTS & STATE ---
-const POWERUP_RADIUS = 25;
-const MAX_POWERUPS = 5;
-let powerups = [];
-let powerupIdCounter = 0;
-
-// Pre-calculate valid floor tiles for safe spawning
-const validSpawns = [];
-for (let r = 0; r < MAP_BLUEPRINT.length; r++) {
-  for (let c = 0; c < MAP_BLUEPRINT[r].length; c++) {
-    if (MAP_BLUEPRINT[r][c] === "0") {
-      // Calculate the exact center pixel of the tile
-      validSpawns.push({ 
-          x: c * TILE_SIZE + TILE_SIZE / 2, 
-          y: r * TILE_SIZE + TILE_SIZE / 2 
-      });
-    }
-  }
-}
-
-// Power-up Spawner (Runs every 8 seconds)
-setInterval(() => {
-  if (powerups.length < MAX_POWERUPS && validSpawns.length > 0) {
-    const spawn = validSpawns[Math.floor(Math.random() * validSpawns.length)];
-    powerups.push({
-      id: powerupIdCounter++,
-      x: spawn.x,
-      y: spawn.y,
-      type: Math.random() > 0.5 ? "SHIELD" : "SPEED", // 50/50 chance
-    });
-  }
-}, 8000);
 // --- PHYSICS CONSTANTS ---
 const FRICTION = 0.99999; // The ball loses ~0.8% speed per frame. It stays alive but eventually stops.
 const BOUNCE = -0.999999;    // The ball loses 10% of its speed when hitting a wall.
@@ -140,8 +108,6 @@ io.on("connection", (socket) => {
         isIt: isFirstPlayer,
         lastHeartbeat: Date.now(),
         stunnedUntil: 0,
-        activePowerup: null, // NEW: Tracks the current power-up string
-        powerupUntil: 0,     // NEW: Timestamp for when the power-up expires
       };
     } else {
       console.log(`Session reconnected: ${sessionId}`);
@@ -152,28 +118,6 @@ io.on("connection", (socket) => {
     // Send initial state
     const now = Date.now();
     const activeDoors = doors.map((d) => d.closeUntil > now);
-    // --- POWER-UP COLLECTION & EXPIRY ---
-  for (const sessionId in players) {
-    const p = players[sessionId];
-
-    // Clear expired power-ups
-    if (p.activePowerup && now > p.powerupUntil) {
-      p.activePowerup = null;
-    }
-
-    // Check collisions with power-ups
-    for (let i = powerups.length - 1; i >= 0; i--) {
-      const pu = powerups[i];
-      const dist = Math.hypot(p.x - pu.x, p.y - pu.y);
-
-      if (dist < PLAYER_RADIUS + POWERUP_RADIUS) {
-        p.activePowerup = pu.type;
-        p.powerupUntil = now + 5000; // Power-up lasts for 5 seconds
-        powerups.splice(i, 1); // Remove it from the map
-        io.emit("powerupCollected", { sessionId, type: pu.type });
-      }
-    }
-  }
     socket.emit("gameState", { players, doors: activeDoors });
   });
 
@@ -297,7 +241,7 @@ setInterval(() => {
         // --- UPDATED TAG RANGE ---
         // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
         const TAG_REACH = 30; 
-        const targetHasShield = p.activePowerup === "SHIELD";
+        
         if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
           players[itId].isIt = false;
           players[otherId].isIt = true;
@@ -506,11 +450,11 @@ setInterval(() => {
     ballBuffer[offset + 3] = b.vx; // [3]
     ballBuffer[offset + 4] = b.vy; // [4]
   }
+
   // Socket.io automatically detects the .buffer property and transmits it as raw binary!
   io.volatile.emit("gameState", {
     players,
     doors: activeDoors,
-    powerups, // <-- NEW: Include power-ups in the payload
     balls: ballBuffer.buffer,
   });
 }, 1000 / 60);
