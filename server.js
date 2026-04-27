@@ -66,58 +66,29 @@ const MAP_BLUEPRINT = [
   "10000<<<<<000D0000000000000000D00000>>>>>0001",
   "111111111111111111111111111111111111111111111",
 ];
-// Initialize Balls (Now with 13 balls total for maximum chaos)
+// Initialize Balls (Fixed positions to avoid walls)
 const balls = [
   { id: 1, x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 750, startY: 450, padTime: 0 },
   { id: 2, x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1950, startY: 3450, padTime: 0 },
   { id: 3, x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 5850, padTime: 0 },
   { id: 4, x: 450, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 1050, padTime: 0 },
   { id: 5, x: 450, y: 7050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 7050, padTime: 0 },
-  { id: 6, x: 7350, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 7350, startY: 4050, padTime: 0 },
-  { id: 7, x: 12450, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12450, startY: 3450, padTime: 0 },
-  { id: 8, x: 6150, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6150, startY: 6450, padTime: 0 },
   
-  // --- EVEN MORE BALLS ---
-  {
-    id: 9, // Upper Right Corridor (Row 1, Col 30)
-    x: 9150, y: 450,
-    vx: 0, vy: 0,
-    radius: BALL_RADIUS,
-    startX: 9150, startY: 450,
-    padTime: 0,
-  },
-  {
-    id: 10, // Far Bottom Right Corner (Row 21, Col 42)
-    x: 12750, y: 6450,
-    vx: 0, vy: 0,
-    radius: BALL_RADIUS,
-    startX: 12750, startY: 6450,
-    padTime: 0,
-  },
-  {
-    id: 11, // Top Center Overlook (Row 3, Col 22)
-    x: 6750, y: 1050,
-    vx: 0, vy: 0,
-    radius: BALL_RADIUS,
-    startX: 6750, startY: 1050,
-    padTime: 0,
-  },
-  {
-    id: 12, // Middle Left Junction (Row 5, Col 12)
-    x: 3750, y: 1650,
-    vx: 0, vy: 0,
-    radius: BALL_RADIUS,
-    startX: 3750, startY: 1650,
-    padTime: 0,
-  },
-  {
-    id: 13, // Left Vertical Hallway (Row 19, Col 5)
-    x: 1650, y: 5850,
-    vx: 0, vy: 0,
-    radius: BALL_RADIUS,
-    startX: 1650, startY: 5850,
-    padTime: 0,
-  },
+  // FIXED: Ball 6 was inside a wall at Col 24. Moved to Col 21 (Floor).
+  { id: 6, x: 6450, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6450, startY: 4050, padTime: 0 },
+  
+  // FIXED: Ball 7 was at Col 41 (Wall). Moved to Col 40 (Floor).
+  { id: 7, x: 12150, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12150, startY: 3450, padTime: 0 },
+  
+  { id: 8, x: 6150, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6150, startY: 6450, padTime: 0 },
+  { id: 9, x: 9150, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 450, padTime: 0 },
+
+  // FIXED: Ball 10 was at Col 42 (Wall). Moved to Col 41 (Floor).
+  { id: 10, x: 12450, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12450, startY: 6450, padTime: 0 },
+
+  { id: 11, x: 6750, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 1050, padTime: 0 },
+  { id: 12, x: 3750, y: 1650, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 3750, startY: 1650, padTime: 0 },
+  { id: 13, x: 1650, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1650, startY: 5850, padTime: 0 },
 ];
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
