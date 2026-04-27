@@ -35,8 +35,9 @@ const doors = Array(MAX_DOORS)
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
-const FRICTION = 1;
-const BOUNCE = -1; // How bouncy the walls are
+// --- PHYSICS CONSTANTS ---
+const FRICTION = 0.992; // The ball loses ~0.8% speed per frame. It stays alive but eventually stops.
+const BOUNCE = -0.9;    // The ball loses 10% of its speed when hitting a wall.
 
 const MAP_BLUEPRINT = [
   "111111111111111111111111111111111111111111111",
@@ -251,7 +252,7 @@ setInterval(() => {
 
         // --- UPDATED TAG RANGE ---
         // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
-        const TAG_REACH = 100; 
+        const TAG_REACH = 30; 
         
         if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
           players[itId].isIt = false;
