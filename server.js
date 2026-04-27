@@ -295,6 +295,16 @@ setInterval(() => {
     ball.x += ball.vx;
     ball.y += ball.vy;
 
+    // --- OUT OF BOUNDS RESET LOGIC ---
+    if (ball.x < 0 || ball.x > 20000 || ball.y < 0 || ball.y > 20000) {
+      ball.x = ball.startX;
+      ball.y = ball.startY;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.padTime = 0;
+      return; // Skip the rest of the wall-bounce logic for this frame
+    }
+
     // --- TILE INTERACTIONS (Walls, Doors, Speed Pads) ---
     // Get the grid coordinates of the ball's center
     const gridX = Math.floor(ball.x / TILE_SIZE);
@@ -342,15 +352,9 @@ setInterval(() => {
           ball.padTime = 0;
         }
       } else {
-      // --- OUT OF BOUNDS RESET LOGIC ---
-      // If the ball's grid coordinates are outside the MAP_BLUEPRINT array,
-      // instantly teleport it back to its starting position and kill its momentum.
-      ball.x = ball.startX;
-      ball.y = ball.startY;
-      ball.vx = 0;
-      ball.vy = 0;
-      ball.padTime = 0;
-    }
+        // Reset the timer instantly if it touches a normal floor/wall
+        ball.padTime = 0;
+      }
 
       // Simple Wall/Door Bouncing
       // (Checks the edges of the ball against tile boundaries)
