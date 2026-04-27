@@ -79,7 +79,7 @@ const balls = [
   { id: 6, x: 6750, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 4050, padTime: 0 },
   
   // FIXED: Moved to Col 42 (Floor). Previous Col 40 was a 1x1 gap that often caused "sticking"
-  { id: 7, x: 12750, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12750, startY: 3450, padTime: 0 },
+  { id: 7, x: 13050, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12750, startY: 3450, padTime: 0 },
   
   { id: 8, x: 6150, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6150, startY: 6450, padTime: 0 },
   { id: 9, x: 9150, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 450, padTime: 0 },
