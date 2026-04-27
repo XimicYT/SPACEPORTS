@@ -342,9 +342,15 @@ setInterval(() => {
           ball.padTime = 0;
         }
       } else {
-        // Reset the timer instantly if it touches a normal floor/wall
-        ball.padTime = 0;
-      }
+      // --- OUT OF BOUNDS RESET LOGIC ---
+      // If the ball's grid coordinates are outside the MAP_BLUEPRINT array,
+      // instantly teleport it back to its starting position and kill its momentum.
+      ball.x = ball.startX;
+      ball.y = ball.startY;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.padTime = 0;
+    }
 
       // Simple Wall/Door Bouncing
       // (Checks the edges of the ball against tile boundaries)
