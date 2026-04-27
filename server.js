@@ -251,7 +251,7 @@ setInterval(() => {
 
         // --- UPDATED TAG RANGE ---
         // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
-        const TAG_REACH = 15; 
+        const TAG_REACH = 20; 
         
         if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
           players[itId].isIt = false;
