@@ -35,7 +35,7 @@ const doors = Array(MAX_DOORS)
 const TILE_SIZE = 300;
 // "A little more than about half the width of a hallway"
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
-const FRICTION = 0.98;
+const FRICTION = 1;
 const BOUNCE = -0.85; // How bouncy the walls are
 
 const MAP_BLUEPRINT = [
@@ -251,7 +251,7 @@ setInterval(() => {
 
         // --- UPDATED TAG RANGE ---
         // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
-        const TAG_REACH = 20; 
+        const TAG_REACH = 100; 
         
         if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
           players[itId].isIt = false;
