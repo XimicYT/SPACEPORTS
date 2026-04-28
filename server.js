@@ -91,6 +91,43 @@ const balls = [
   { id: 12, x: 3750, y: 1650, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 3750, startY: 1650, padTime: 0 },
   { id: 13, x: 1650, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1650, startY: 5850, padTime: 0 },
 ];
+// --- PHYSICS CONSTANTS (BASE VALUES) ---
+const BASE_FRICTION = 0.99999; 
+const BASE_BOUNCE = -0.999999;
+const BASE_IMPULSE_WEIGHT = 1.6;
+const BASE_PAD_FORCE = 0.8;
+
+// --- SERVER EVENT SYSTEM ---
+const SERVER_EVENTS = [
+  "NORMAL", 
+  "SUPER_BOUNCE",      // Walls increase ball speed
+  "ICE_RINK",          // Zero friction, balls never slow down naturally
+  "LIGHTNING_STRIKES", // Hitting a ball sends it flying
+  "CRAZY_PADS"         // Arrows are 3x more powerful
+];
+
+let currentEvent = "NORMAL";
+let eventEndTime = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+
+// Event Controller (Runs every 5 minutes)
+setInterval(() => {
+  let newEvent;
+  // Pick a random event that isn't the current one
+  do {
+    newEvent = SERVER_EVENTS[Math.floor(Math.random() * SERVER_EVENTS.length)];
+  } while (newEvent === currentEvent);
+
+  currentEvent = newEvent;
+  eventEndTime = Date.now() + 5 * 60 * 1000;
+
+  console.log(`[EVENT] Server Event changed to: ${currentEvent}`);
+  
+  // Broadcast to all clients so they can show a UI banner
+  io.emit("serverEvent", { 
+    event: currentEvent, 
+    timeRemaining: eventEndTime - Date.now() 
+  });
+}, 5 * 60 * 1000);
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
@@ -115,10 +152,15 @@ io.on("connection", (socket) => {
       players[sessionId].lastHeartbeat = Date.now(); 
     }
 
-    // Send initial state
+   // Send initial state (UPDATED to include current event)
     const now = Date.now();
     const activeDoors = doors.map((d) => d.closeUntil > now);
-    socket.emit("gameState", { players, doors: activeDoors });
+    socket.emit("gameState", { 
+      players, 
+      doors: activeDoors,
+      currentEvent: currentEvent,
+      eventTimeRemaining: Math.max(0, eventEndTime - Date.now())
+    });
   });
 
   socket.on("heartbeat", () => {
@@ -139,21 +181,21 @@ io.on("connection", (socket) => {
   // --- INSTANT BALL STRIKE LISTENER ---
   // --- INSTANT BALL STRIKE LISTENER ---
   socket.on("ballStrike", (data) => {
-    // FIXED: We must look up the player using socket.sessionId, not socket.id!
     const p = players[socket.sessionId];
     const ball = balls[data.ballId];
 
     if (!p || !ball) return;
 
-    p.lastHeartbeat = Date.now(); // CRITICAL FIX
-    // Anti-Cheat / Lag Compensation Check: Ensure the player is actually near the ball
+    p.lastHeartbeat = Date.now(); 
     const dist = Math.hypot(ball.x - p.x, ball.y - p.y);
-    const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; // 150px leeway for latency
+    const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; 
 
     if (dist < maxValidDistance) {
-      // NEW: Increased the weight modifier from 0.8 to 1.6
-      // This makes the ball "lighter", taking much more momentum from your strikes.
-      const impulse = (data.impactSpeed / 60) * 1.6;
+      // DYNAMIC IMPULSE MODIFIER
+      let impulseWeight = BASE_IMPULSE_WEIGHT;
+      if (currentEvent === "LIGHTNING_STRIKES") impulseWeight = 4.0; // Huge knockback!
+
+      const impulse = (data.impactSpeed / 60) * impulseWeight;
 
       ball.vx -= data.nx * impulse;
       ball.vy -= data.ny * impulse;
@@ -254,11 +296,20 @@ setInterval(() => {
     }
   }
 
+  // --- DYNAMIC PHYSICS VARIABLES ---
+  let activeFriction = BASE_FRICTION;
+  let activeBounce = BASE_BOUNCE;
+  let activePadForce = BASE_PAD_FORCE;
+
+  if (currentEvent === "ICE_RINK") activeFriction = 1.0; // No speed loss
+  if (currentEvent === "SUPER_BOUNCE") activeBounce = -1.15; // Balls gain 15% speed on wall hit
+  if (currentEvent === "CRAZY_PADS") activePadForce = 2.4; // 3x speed from arrows
+
   // 2. BALL PHYSICS
   balls.forEach((ball) => {
-    // Apply Friction
-    ball.vx *= FRICTION;
-    ball.vy *= FRICTION;
+    // Apply Dynamic Friction
+    ball.vx *= activeFriction;
+    ball.vy *= activeFriction;
 
     // --- BALL VS BALL COLLISIONS ---
     balls.forEach((otherBall) => {
@@ -307,6 +358,7 @@ setInterval(() => {
 
     // --- TILE INTERACTIONS (Walls, Doors, Speed Pads) ---
     // Get the grid coordinates of the ball's center
+    // --- TILE INTERACTIONS ---
     const gridX = Math.floor(ball.x / TILE_SIZE);
     const gridY = Math.floor(ball.y / TILE_SIZE);
 
@@ -318,26 +370,13 @@ setInterval(() => {
     ) {
       const tile = MAP_BLUEPRINT[gridY][gridX];
 
-      // Speed Pads & Anti-Vortex Respawn Logic
-      const speedForce = 0.8;
+      // Use Dynamic Pad Force
       let onPad = false;
 
-      if (tile === ">") {
-        ball.vx += speedForce;
-        onPad = true;
-      }
-      if (tile === "<") {
-        ball.vx -= speedForce;
-        onPad = true;
-      }
-      if (tile === "^") {
-        ball.vy -= speedForce;
-        onPad = true;
-      }
-      if (tile === "v") {
-        ball.vy += speedForce;
-        onPad = true;
-      }
+      if (tile === ">") { ball.vx += activePadForce; onPad = true; }
+      if (tile === "<") { ball.vx -= activePadForce; onPad = true; }
+      if (tile === "^") { ball.vy -= activePadForce; onPad = true; }
+      if (tile === "v") { ball.vy += activePadForce; onPad = true; }
 
       if (onPad) {
         // Add ~16.6ms (one frame at 60fps) to the timer
@@ -387,40 +426,34 @@ setInterval(() => {
         return false;
       };
 
-      // Bounce X
+     // Bounce X (Use dynamic bounce)
       if (
         ball.vx > 0 &&
         checkWall(Math.floor((ball.x + ball.radius) / TILE_SIZE), gridY)
       ) {
-        ball.x =
-          Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE -
-          ball.radius -
-          1;
-        ball.vx *= BOUNCE;
+        ball.x = Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE - ball.radius - 1;
+        ball.vx *= activeBounce;
       } else if (
         ball.vx < 0 &&
         checkWall(Math.floor((ball.x - ball.radius) / TILE_SIZE), gridY)
       ) {
         ball.x = Math.floor(ball.x / TILE_SIZE) * TILE_SIZE + ball.radius + 1;
-        ball.vx *= BOUNCE;
+        ball.vx *= activeBounce;
       }
 
-      // Bounce Y
+      // Bounce Y (Use dynamic bounce)
       if (
         ball.vy > 0 &&
         checkWall(gridX, Math.floor((ball.y + ball.radius) / TILE_SIZE))
       ) {
-        ball.y =
-          Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE -
-          ball.radius -
-          1;
-        ball.vy *= BOUNCE;
+        ball.y = Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE - ball.radius - 1;
+        ball.vy *= activeBounce;
       } else if (
         ball.vy < 0 &&
         checkWall(gridX, Math.floor((ball.y - ball.radius) / TILE_SIZE))
       ) {
         ball.y = Math.floor(ball.y / TILE_SIZE) * TILE_SIZE + ball.radius + 1;
-        ball.vy *= BOUNCE;
+        ball.vy *= activeBounce;
       }
     }
   });
