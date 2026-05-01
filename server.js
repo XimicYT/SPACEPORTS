@@ -37,7 +37,7 @@ const TILE_SIZE = 300;
 const BALL_RADIUS = TILE_SIZE / 4 + 10;
 // --- PHYSICS CONSTANTS ---
 const FRICTION = 0.99999; // The ball loses ~0.8% speed per frame. It stays alive but eventually stops.
-const BOUNCE = -0.999999;    // The ball loses 10% of its speed when hitting a wall.
+const BOUNCE = -0.999999; // The ball loses 10% of its speed when hitting a wall.
 
 const MAP_BLUEPRINT = [
   "111111111111111111111111111111111111111111111",
@@ -51,7 +51,7 @@ const MAP_BLUEPRINT = [
   "1^10101111111111011011011011110111101^0v101v1",
   "1^10101000D00001000010010011000011100000101v1",
   "1010101011111101011111011111110111001>>>10101",
-  "1010100011111100011111000001100001001^0v10101",
+  "1010100010000>00011111000001100001001^0v10101",
   "10101^1011111101000000011010101101v01<<<10101",
   "10101^1000000001011011011110100001v0100010001",
   "101000111111010111v<<101111011101100100010101",
@@ -69,65 +69,199 @@ const MAP_BLUEPRINT = [
 // Initialize Balls (Fixed positions to avoid walls)
 // Initialize Balls (Positions adjusted to ensure they are centered on floor tiles)
 const balls = [
-  { id: 1, x: 750, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 750, startY: 450, padTime: 0 },
-  { id: 2, x: 1950, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1950, startY: 3450, padTime: 0 },
-  { id: 3, x: 9150, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 5850, padTime: 0 },
-  { id: 4, x: 450, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 1050, padTime: 0 },
-  { id: 5, x: 450, y: 7050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 450, startY: 7050, padTime: 0 },
-  
+  {
+    id: 1,
+    x: 750,
+    y: 450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 750,
+    startY: 450,
+    padTime: 0,
+  },
+  {
+    id: 2,
+    x: 1950,
+    y: 3450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 1950,
+    startY: 3450,
+    padTime: 0,
+  },
+  {
+    id: 3,
+    x: 9150,
+    y: 5850,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 9150,
+    startY: 5850,
+    padTime: 0,
+  },
+  {
+    id: 4,
+    x: 450,
+    y: 1050,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 450,
+    startY: 1050,
+    padTime: 0,
+  },
+  {
+    id: 5,
+    x: 450,
+    y: 7050,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 450,
+    startY: 7050,
+    padTime: 0,
+  },
+
   // FIXED: Moved to Col 22 (Floor) to avoid the wall at Col 21
-  { id: 6, x: 6750, y: 4050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 4050, padTime: 0 },
-  
+  {
+    id: 6,
+    x: 6750,
+    y: 4050,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 6750,
+    startY: 4050,
+    padTime: 0,
+  },
+
   // FIXED: Moved to Col 42 (Floor). Previous Col 40 was a 1x1 gap that often caused "sticking"
-  { id: 7, x: 13050, y: 3450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 12750, startY: 3450, padTime: 0 },
-  
-  { id: 8, x: 6150, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6150, startY: 6450, padTime: 0 },
-  { id: 9, x: 9150, y: 450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 9150, startY: 450, padTime: 0 },
+  {
+    id: 7,
+    x: 13050,
+    y: 3450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 12750,
+    startY: 3450,
+    padTime: 0,
+  },
+
+  {
+    id: 8,
+    x: 6150,
+    y: 6450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 6150,
+    startY: 6450,
+    padTime: 0,
+  },
+  {
+    id: 9,
+    x: 9150,
+    y: 450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 9150,
+    startY: 450,
+    padTime: 0,
+  },
 
   // FIXED: Moved to Col 43 (Floor) to give it more breathing room from the edge wall
-  { id: 10, x: 13050, y: 6450, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 13050, startY: 6450, padTime: 0 },
+  {
+    id: 10,
+    x: 13050,
+    y: 6450,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 13050,
+    startY: 6450,
+    padTime: 0,
+  },
 
-  { id: 11, x: 6750, y: 1050, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 6750, startY: 1050, padTime: 0 },
-  { id: 12, x: 3750, y: 1650, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 3750, startY: 1650, padTime: 0 },
-  { id: 13, x: 1650, y: 5850, vx: 0, vy: 0, radius: BALL_RADIUS, startX: 1650, startY: 5850, padTime: 0 },
+  {
+    id: 11,
+    x: 6750,
+    y: 1050,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 6750,
+    startY: 1050,
+    padTime: 0,
+  },
+  {
+    id: 12,
+    x: 3750,
+    y: 1650,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 3750,
+    startY: 1650,
+    padTime: 0,
+  },
+  {
+    id: 13,
+    x: 1650,
+    y: 5850,
+    vx: 0,
+    vy: 0,
+    radius: BALL_RADIUS,
+    startX: 1650,
+    startY: 5850,
+    padTime: 0,
+  },
 ];
 // --- PHYSICS CONSTANTS (BASE VALUES) ---
-const BASE_FRICTION = 0.99999; 
+const BASE_FRICTION = 0.99999;
 const BASE_BOUNCE = -0.999999;
 const BASE_IMPULSE_WEIGHT = 1.6;
 const BASE_PAD_FORCE = 0.8;
 
 // --- SERVER EVENT SYSTEM ---
 const SERVER_EVENTS = [
-  "NORMAL", 
-  "SUPER_BOUNCE",      // Walls increase ball speed
-  "ICE_RINK",          // Zero friction, balls never slow down naturally
+  "NORMAL",
+  "SUPER_BOUNCE", // Walls increase ball speed
+  "ICE_RINK", // Zero friction, balls never slow down naturally
   "LIGHTNING_STRIKES", // Hitting a ball sends it flying
-  "CRAZY_PADS"         // Arrows are 3x more powerful
+  "CRAZY_PADS", // Arrows are 3x more powerful
 ];
 
 let currentEvent = "NORMAL";
 let eventEndTime = Date.now() + 5 * 60 * 1000; // 5 minutes from now
 
 // Event Controller (Runs every 5 minutes)
-setInterval(() => {
-  let newEvent;
-  // Pick a random event that isn't the current one
-  do {
-    newEvent = SERVER_EVENTS[Math.floor(Math.random() * SERVER_EVENTS.length)];
-  } while (newEvent === currentEvent);
+setInterval(
+  () => {
+    let newEvent;
+    // Pick a random event that isn't the current one
+    do {
+      newEvent =
+        SERVER_EVENTS[Math.floor(Math.random() * SERVER_EVENTS.length)];
+    } while (newEvent === currentEvent);
 
-  currentEvent = newEvent;
-  eventEndTime = Date.now() + 5 * 60 * 1000;
+    currentEvent = newEvent;
+    eventEndTime = Date.now() + 5 * 60 * 1000;
 
-  console.log(`[EVENT] Server Event changed to: ${currentEvent}`);
-  
-  // Broadcast to all clients so they can show a UI banner
-  io.emit("serverEvent", { 
-    event: currentEvent, 
-    timeRemaining: eventEndTime - Date.now() 
-  });
-}, 5 * 60 * 1000);
+    console.log(`[EVENT] Server Event changed to: ${currentEvent}`);
+
+    // Broadcast to all clients so they can show a UI banner
+    io.emit("serverEvent", {
+      event: currentEvent,
+      timeRemaining: eventEndTime - Date.now(),
+    });
+  },
+  5 * 60 * 1000,
+);
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
@@ -149,17 +283,17 @@ io.on("connection", (socket) => {
     } else {
       console.log(`Session reconnected: ${sessionId}`);
       // CRITICAL FIX: Update heartbeat so the sweeper doesn't kill them
-      players[sessionId].lastHeartbeat = Date.now(); 
+      players[sessionId].lastHeartbeat = Date.now();
     }
 
-   // Send initial state (UPDATED to include current event)
+    // Send initial state (UPDATED to include current event)
     const now = Date.now();
     const activeDoors = doors.map((d) => d.closeUntil > now);
-    socket.emit("gameState", { 
-      players, 
+    socket.emit("gameState", {
+      players,
       doors: activeDoors,
       currentEvent: currentEvent,
-      eventTimeRemaining: Math.max(0, eventEndTime - Date.now())
+      eventTimeRemaining: Math.max(0, eventEndTime - Date.now()),
     });
   });
 
@@ -186,9 +320,9 @@ io.on("connection", (socket) => {
 
     if (!p || !ball) return;
 
-    p.lastHeartbeat = Date.now(); 
+    p.lastHeartbeat = Date.now();
     const dist = Math.hypot(ball.x - p.x, ball.y - p.y);
-    const maxValidDistance = ball.radius + PLAYER_RADIUS + 150; 
+    const maxValidDistance = ball.radius + PLAYER_RADIUS + 150;
 
     if (dist < maxValidDistance) {
       // DYNAMIC IMPULSE MODIFIER
@@ -267,7 +401,7 @@ setInterval(() => {
 setInterval(() => {
   const now = Date.now();
   const activeDoors = doors.map((d) => d.closeUntil > now);
-  
+
   if (now > tagCooldown) {
     const itId = Object.keys(players).find((id) => players[id].isIt);
 
@@ -282,9 +416,9 @@ setInterval(() => {
 
         // --- UPDATED TAG RANGE ---
         // Added a 15-pixel reach buffer. Increase or decrease this number to tune the difficulty.
-        const TAG_REACH = 30; 
-        
-        if (dist < (PLAYER_RADIUS * 2) + TAG_REACH) {
+        const TAG_REACH = 30;
+
+        if (dist < PLAYER_RADIUS * 2 + TAG_REACH) {
           players[itId].isIt = false;
           players[otherId].isIt = true;
           players[otherId].stunnedUntil = now + 2500;
@@ -373,10 +507,22 @@ setInterval(() => {
       // Use Dynamic Pad Force
       let onPad = false;
 
-      if (tile === ">") { ball.vx += activePadForce; onPad = true; }
-      if (tile === "<") { ball.vx -= activePadForce; onPad = true; }
-      if (tile === "^") { ball.vy -= activePadForce; onPad = true; }
-      if (tile === "v") { ball.vy += activePadForce; onPad = true; }
+      if (tile === ">") {
+        ball.vx += activePadForce;
+        onPad = true;
+      }
+      if (tile === "<") {
+        ball.vx -= activePadForce;
+        onPad = true;
+      }
+      if (tile === "^") {
+        ball.vy -= activePadForce;
+        onPad = true;
+      }
+      if (tile === "v") {
+        ball.vy += activePadForce;
+        onPad = true;
+      }
 
       if (onPad) {
         // Add ~16.6ms (one frame at 60fps) to the timer
@@ -426,12 +572,15 @@ setInterval(() => {
         return false;
       };
 
-     // Bounce X (Use dynamic bounce)
+      // Bounce X (Use dynamic bounce)
       if (
         ball.vx > 0 &&
         checkWall(Math.floor((ball.x + ball.radius) / TILE_SIZE), gridY)
       ) {
-        ball.x = Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE - ball.radius - 1;
+        ball.x =
+          Math.floor((ball.x + ball.radius) / TILE_SIZE) * TILE_SIZE -
+          ball.radius -
+          1;
         ball.vx *= activeBounce;
       } else if (
         ball.vx < 0 &&
@@ -446,7 +595,10 @@ setInterval(() => {
         ball.vy > 0 &&
         checkWall(gridX, Math.floor((ball.y + ball.radius) / TILE_SIZE))
       ) {
-        ball.y = Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE - ball.radius - 1;
+        ball.y =
+          Math.floor((ball.y + ball.radius) / TILE_SIZE) * TILE_SIZE -
+          ball.radius -
+          1;
         ball.vy *= activeBounce;
       } else if (
         ball.vy < 0 &&
